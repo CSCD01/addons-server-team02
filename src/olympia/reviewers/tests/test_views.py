@@ -6336,6 +6336,55 @@ class TestDraftCommentViewSet(TestCase):
         self.version = self.addon.current_version
         self.version.refresh_from_db()
 
+    def test_create_DNE(self):
+        user = user_factory(username='reviewer')
+        self.grant_permission(user, 'Addons:Review')
+        self.client.login_api(user)
+
+        data = {
+            'comment': 'Some really fancy comment',
+            'lineno': 99999999,
+            'filename': 'manifest.json',
+        }
+
+        url = reverse_ns('reviewers-versions-draft-comment-list', kwargs={
+            'addon_pk': self.addon.pk,
+            'version_pk': self.version.pk
+        })
+
+        response = self.client.post(url, data)
+        comment_id = response.json()['id']
+        assert response.status_code == 201
+
+        response = self.client.post(url, data)
+        assert response.status_code == 201
+
+        assert DraftComment.objects.count() == 2
+
+        response = self.client.get(url)
+
+        request = APIRequestFactory().get('/')
+        request.user = user
+
+        assert response.json()['count'] == 2
+        print("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+        print(response.json()['results'][0])
+        print("|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+        # assert response.json()['results'][0] == {
+        #     'id': comment_id,
+        #     'filename': 'manifest.json',
+        #     'lineno': 20,
+        #     'comment': 'Some really fancy comment',
+        #     'canned_response': None,
+        #     'version': json.loads(json.dumps(
+        #         AddonBrowseVersionSerializer(self.version).data,
+        #         cls=amo.utils.AMOJSONEncoder)),
+        #     'user': json.loads(json.dumps(
+        #         BaseUserSerializer(
+        #             user, context={'request': request}).data,
+        #         cls=amo.utils.AMOJSONEncoder))
+        # }
+
     def test_create_and_retrieve(self):
         user = user_factory(username='reviewer')
         self.grant_permission(user, 'Addons:Review')
